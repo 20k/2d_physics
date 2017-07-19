@@ -190,13 +190,80 @@ struct collideable_manager_base : virtual object_manager<T>
                 if(!my_t->can_collide() || !their_t->can_collide())
                     continue;
 
-                if((my_t->team != their_t->team) && my_t->intersects(their_t))
+                if((void*)my_t == (void*)their_t)
+                    continue;
+
+                if(my_t->intersects(their_t))
                 {
                     my_t->on_collide(st, their_t);
                     their_t->on_collide(st, my_t);
                 }
             }
         }
+    }
+};
+
+struct timestep_state
+{
+    #define NO_FIXED
+
+    float get_max_step(float dt_s)
+    {
+        #ifndef NO_FIXED
+        return 8.f * (1/1000.f);
+        #else
+        return dt_s;
+        #endif
+    }
+
+    float saved_timestep = 0.f;
+
+    int step(float dt_s)
+    {
+        #ifndef NO_FIXED
+        saved_timestep += dt_s;
+
+        int num = floor(saved_timestep / get_max_step());
+
+        num = clamp(num, 0, 1);
+
+        saved_timestep -= num * get_max_step();
+
+        return num;
+        #else
+        return 1;
+        #endif
+    }
+};
+
+template<typename T>
+struct chemical_interaction_base : virtual object_manager<T>
+{
+    timestep_state fts;
+
+    template<typename U>
+    void check_interaction(float dt_s, state& st, chemical_interaction_base<U>& other)
+    {
+        int nsteps = fts.step(dt_s);
+
+        for(int kk=0; kk < nsteps; kk++)
+        {
+            for(int i=0; i<object_manager<T>::objs.size(); i++)
+            {
+                T* my_t = object_manager<T>::objs[i];
+
+                my_t->interact(fts.get_max_step(dt_s), other);
+            }
+        }
+
+        /*cur_timestep = clamp(cur_timestep, 0.00001f, max_timestep);
+
+        for(int i=0; i<object_manager<T>::objs.size(); i++)
+        {
+            T* my_t = object_manager<T>::objs[i];
+
+            my_t->interact(cur_timestep, other);
+        }*/
     }
 };
 

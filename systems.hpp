@@ -61,6 +61,19 @@ struct renderable
     {
 
     }
+
+    bool out_of_bounds(sf::RenderWindow& win, vec2f pos)
+    {
+        auto spos = win.mapCoordsToPixel({pos.x(), pos.y()});
+
+        int hx = tex.getSize().x/2;
+        int hy = tex.getSize().y/2;
+
+        if(spos.x + hx < 0 || spos.y + hy < 0 || spos.x - hx > win.getSize().x || spos.y - hy > win.getSize().y)
+            return true;
+
+        return false;
+    }
 };
 
 namespace collide
@@ -172,183 +185,6 @@ struct moveable : virtual base_class
     bool on_default_side = false;
     float side_time = 0.f;
     float side_time_max = 0.100f;
-};
-
-struct jetpackable : virtual base_class
-{
-    float flight_time_max = 1.f;
-    float flight_time_left = flight_time_max;
-
-    float regen_flight_time = 3.f;
-
-    float force = GRAVITY_STRENGTH * 1.5;
-
-    bool should_jetpack = false;
-
-    vec2f activate(float dt_s)
-    {
-        vec2f ret;
-
-        flight_time_left -= dt_s;
-
-        if(flight_time_left > 0)
-        {
-            ret.y() = -1;
-        }
-
-        flight_time_left = clamp(flight_time_left, 0.f, flight_time_max);
-
-        return ret * force;
-    }
-
-    void idle(float dt_s)
-    {
-        flight_time_left += dt_s;
-
-        flight_time_left = clamp(flight_time_left, 0.f, flight_time_max);
-    }
-
-    vec2f tick(float dt_s)
-    {
-        if(should_jetpack)
-        {
-            should_jetpack = false;
-
-            return activate(dt_s);
-        }
-        else
-        {
-            idle(dt_s);
-
-            return {0, 0};
-        }
-    }
-
-    void render_ui()
-    {
-        ImGui::Begin("Jetpack UI");
-
-        float flight_frac = flight_time_left / flight_time_max;
-
-        constexpr int num_divisions = 10;
-
-        float num_filled = floor(flight_frac * num_divisions);
-
-        float extra = flight_frac * num_divisions - num_filled;
-
-        float vals[num_divisions];
-
-        for(int i=0; i<num_divisions; i++)
-        {
-            if(i < num_filled)
-            {
-                vals[i] = 1.f;
-            }
-            else if(i == num_filled)
-            {
-                vals[i] = extra;
-            }
-            else
-            {
-                vals[i] = 0;
-            }
-        }
-
-        //ImGui::PlotHistogram("Jetpack", &flight_frac, 1, 0, nullptr, 0, 1);
-        ImGui::PlotHistogram("", vals, num_divisions, 0, nullptr, 0, 1, ImVec2(100, 20));
-
-        ImGui::End();
-    }
-};
-
-///make this inherit from network stuff
-struct grappling_hookable : virtual renderable
-{
-    bool hooking = false;
-    vec2f destination;
-    vec2f source;
-    float cur_hook_dist = 0.f;
-
-    float max_hook_dist = 300.f;
-
-    bool can_hook(vec2f dest, vec2f src) const
-    {
-        return (dest - src).length() < max_hook_dist;
-    }
-
-    void hook(vec2f dest, vec2f src)
-    {
-        destination = dest;
-        source = src;
-
-        cur_hook_dist = (dest - src).length();
-
-        //std::cout << "hook dist " << cur_hook_dist << std::endl;
-
-        hooking = true;
-    }
-
-    void unhook()
-    {
-        hooking = false;
-    }
-
-    void update_current_pos(vec2f pos)
-    {
-        source = pos;
-    }
-
-    vec2f apply_constraint(vec2f p1, vec2f anchor, float dt) const
-    {
-        float len = (anchor - p1).length();
-
-        if(len <= cur_hook_dist)
-            return p1;
-
-        float extra = len - cur_hook_dist;
-
-        vec2f to_anchor = (anchor - p1).norm();
-
-        float move_dist = dt * extra;
-
-        float stiffness = 1000000000000.f;
-
-        move_dist *= stiffness;
-
-        move_dist = clamp(move_dist, 0.f, extra);
-
-        vec2f constrained = p1 + to_anchor * move_dist;
-
-        return constrained;
-    }
-
-    vec2f apply_constraint(vec2f p1, float dt)
-    {
-        return apply_constraint(p1, destination, dt);
-    }
-
-    virtual void render(sf::RenderWindow& win)
-    {
-        if(!hooking)
-            return;
-
-        sf::RectangleShape shape;
-
-        shape.setSize({(destination - source).length(), 2.f});
-        shape.setOrigin(0, 1);
-
-        shape.setPosition(source.x(), source.y());
-        shape.setRotation(r2d((destination - source).angle()));
-
-        win.draw(shape);
-
-        sf::CircleShape circle;
-        circle.setRadius(10.f);
-
-        circle.setPosition(destination.x(), destination.y());
-        circle.setPosition(source.x(), source.y());
-        //win.draw(circle);
-    }
 };
 
 #endif // SYSTEMS_HPP_INCLUDED

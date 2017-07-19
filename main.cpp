@@ -628,6 +628,41 @@ struct debug_controls
         }
     }
 
+    vec2f last_spawn_pos;
+    bool has_last_spawn = false;
+
+    void spawn_continuous(vec2f mpos, state& st)
+    {
+        if(suppress_mouse)
+            return;
+
+        sf::Mouse mouse;
+
+        if(mouse.isButtonPressed(sf::Mouse::Left) && !has_last_spawn)
+        {
+            last_spawn_pos = mpos;
+            has_last_spawn = true;
+        }
+
+        if(mouse.isButtonPressed(sf::Mouse::Left))
+        {
+            vec2f dist = (mpos - last_spawn_pos);
+
+            float spacing = 20.f;
+
+            if(dist.length() > spacing)
+            {
+                physics_object_host* c = dynamic_cast<physics_object_host*>(st.physics_object_manage.make_new<physics_object_host>(1, st.net_state));
+
+                c->pos = mpos;
+                c->last_pos = c->pos;
+                c->init_collision_pos(c->pos);
+
+                last_spawn_pos = mpos;
+            }
+        }
+    }
+
     bool show_normals = false;
 
     void editor_controls(vec2f mpos, state& st)
@@ -636,7 +671,7 @@ struct debug_controls
 
         ImGui::Begin("Tools", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-        std::vector<std::string> tools{"Line Draw", "Spawn Point", "Connected Line Tool", "Drag Line Tool"};
+        std::vector<std::string> tools{"Line Draw", "Spawn Point", "Connected Line Tool", "Drag Line Tool", "Spawn", "Spawn Cont"};
 
         for(int i=0; i<tools.size(); i++)
         {
@@ -673,13 +708,30 @@ struct debug_controls
             drag_line_tool(mpos, st);
         }
 
-        if(ImGui::Button("Spawn Enemy"))
+        /*if(ImGui::Button("Spawn"))
         {
-            player_character* c = dynamic_cast<player_character*>(st.character_manage.make_new<player_character>(1, st.net_state));
+            physics_object_host* c = dynamic_cast<physics_object_host*>(st.physics_object_manage.make_new<physics_object_host>(1, st.net_state));
 
-            c->pos = st.game_world_manage.get_next_spawn();
+            c->pos = mpos;
             c->last_pos = c->pos;
             c->init_collision_pos(c->pos);
+        }*/
+
+        if(tools_state == 4)
+        {
+            if(ONCE_MACRO(sf::Mouse::Left) && !suppress_mouse)
+            {
+                physics_object_host* c = dynamic_cast<physics_object_host*>(st.physics_object_manage.make_new<physics_object_host>(1, st.net_state));
+
+                c->pos = mpos;
+                c->last_pos = c->pos;
+                c->init_collision_pos(c->pos);
+            }
+        }
+
+        if(tools_state == 5)
+        {
+            spawn_continuous(mpos, st);
         }
 
         ImGui::Checkbox("Show normals", &show_normals);
@@ -689,49 +741,7 @@ struct debug_controls
         ImGui::End();
     }
 
-    void player_controls(vec2f mpos, state& st, player_character* player)
-    {
-        if(suppress_mouse)
-            return;
-
-        if(ONCE_MACRO(sf::Mouse::Left))
-        {
-            vec2f ppos = player->pos;
-
-            vec2f to_mouse = mpos - ppos;
-
-            host_projectile* p = dynamic_cast<host_projectile*>(st.projectile_manage.make_new<host_projectile>(player->team, st.net_state));
-            p->pos = ppos;
-            p->init_collision_pos(p->pos);
-
-            vec2f inherited = ((player->pos - player->last_pos) / st.dt_s);
-
-            /*//#define VELOCITY_PARENT_INHERIT
-            #ifndef VELOCITY_PARENT_INHERIT
-            inherited = {0,0};
-            #endif // VELOCITY_PARENT_INHERIT*/
-
-            ///still not sure on this
-            inherited = projection(inherited, to_mouse.norm());
-
-            p->dir = to_mouse.norm() * 750.f + inherited;
-            //p->speed = 1000 + ;
-        }
-
-        if(ONCE_MACRO(sf::Mouse::Middle))
-        {
-            player->fire_grapple(mpos, st);
-        }
-
-        sf::Mouse mouse;
-
-        if(!mouse.isButtonPressed(sf::Mouse::Middle))
-        {
-            player->unhook();
-        }
-    }
-
-    void tick(state& st, player_character* player)
+    void tick(state& st)
     {
         vec2f mpos = st.cam.get_mouse_position_world();
 
@@ -739,7 +749,7 @@ struct debug_controls
 
         ImGui::Begin("Control menus");
 
-        std::vector<std::string> modes{"Editor", "Player"};
+        std::vector<std::string> modes{"Editor", "Run"};
 
         for(int i=0; i<modes.size(); i++)
         {
@@ -759,11 +769,6 @@ struct debug_controls
         if(controls_state == 0)
         {
             editor_controls(mpos, st);
-        }
-
-        if(controls_state == 1)
-        {
-            player_controls(mpos, st, player);
         }
 
         ImGui::End();
@@ -837,7 +842,7 @@ int main()
     ImGui::NewFrame();
 
     renderable_manager renderable_manage;
-    character_manager character_manage;
+    physics_object_manager physics_object_manage;
 
     physics_barrier_manager physics_barrier_manage;
     game_world_manager game_world_manage;
@@ -850,19 +855,19 @@ int main()
 
     debug_controls controls;
 
-    state st(character_manage, physics_barrier_manage, game_world_manage, renderable_manage, projectile_manage, cam, net_state);
+    state st(physics_object_manage, physics_barrier_manage, game_world_manage, renderable_manage, projectile_manage, cam, net_state);
 
-    st.character_manage.system_network_id = 0;
+    st.physics_object_manage.system_network_id = 0;
     st.physics_barrier_manage.system_network_id = 1;
     st.game_world_manage.system_network_id = 2;
     st.renderable_manage.system_network_id = 3;
     st.projectile_manage.system_network_id = 4;
 
     ///-2 team bit of a hack, objects default to -1
-    player_character* test = dynamic_cast<player_character*>(character_manage.make_new<player_character>(-2, st.net_state));
+    //player_character* test = dynamic_cast<player_character*>(character_manage.make_new<player_character>(-2, st.net_state));
 
     load("file.mapfile", physics_barrier_manage, game_world_manage, renderable_manage);
-    renderable_manage.add(test);
+    //renderable_manage.add(test);
 
     sf::Clock clk;
 
@@ -933,7 +938,7 @@ int main()
             move_dir.y() += (int)key.isKeyPressed(sf::Keyboard::S);
             move_dir.y() -= (int)key.isKeyPressed(sf::Keyboard::W);
 
-            if(controls.controls_state == 0)
+            //if(controls.controls_state == 0)
             {
                 float mult = 1.f;
 
@@ -944,12 +949,7 @@ int main()
             }
         }
 
-        /*if(ONCE_MACRO(sf::Mouse::Left) && win.hasFocus() && controls.state == 0 && !suppress_mouse)
-        {
-            physics_barrier_manage.add_point(mpos, renderable_manage);
-        }*/
-
-        //test->velocity += move_dir * mult;
+        controls.tick(st);
 
         if(controls.controls_state == 0)
         {
@@ -963,8 +963,6 @@ int main()
             if(ImGui::Button("Load"))
             {
                 load("file.mapfile", physics_barrier_manage, game_world_manage, renderable_manage);
-
-                renderable_manage.add(test);
             }
 
             ImGui::End();
@@ -972,52 +970,27 @@ int main()
 
         if(controls.controls_state == 1)
         {
-            test->set_movement(move_dir * mult);
-
             if(frame > 1)
-                character_manage.tick(dt_s, st);
+            {
+                physics_object_manage.tick(dt_s, st);
+
+                physics_object_manage.check_interaction(dt_s, st, physics_object_manage);
+
+                physics_object_manage.resolve_barrier_collisions(dt_s, st);
+            }
 
             projectile_manage.tick(dt_s, st);
-
-            if(ONCE_MACRO(sf::Keyboard::Space) && win.hasFocus())
-            {
-                test->jump();
-            }
-
-            if(key.isKeyPressed(sf::Keyboard::Space))
-            {
-                test->has_friction = false;
-            }
-            else
-            {
-                test->has_friction = true;
-            }
-
-            if(mouse.isButtonPressed(sf::Mouse::Right))
-            {
-                test->should_jetpack = true;
-            }
-        }
-
-        test->render_ui();
-
-        if(win.hasFocus())
-            controls.tick(st, test);
-
-        if(controls.controls_state == 1)
-        {
-            cam.set_pos(test->pos);
         }
 
         net_state.tick_cleanup();
         net_state.tick_join_game(dt_s);
         net_state.tick();
 
-        projectile_manage.check_collisions(st, character_manage);
+        projectile_manage.check_collisions(st, physics_object_manage);
         projectile_manage.check_collisions(st, physics_barrier_manage);
 
         projectile_manage.tick_all_networking<projectile_manager, projectile>(net_state);
-        character_manage.tick_all_networking<character_manager, character>(net_state);
+        physics_object_manage.tick_all_networking<physics_object_manager, physics_object_client>(net_state);
 
         cam.update_camera();
 
@@ -1029,7 +1002,7 @@ int main()
         physics_barrier_manage.render(win);
         game_world_manage.render(win);
         projectile_manage.render(win);
-        character_manage.render(win);
+        physics_object_manage.render(win);
 
 
         ImGui::Render();

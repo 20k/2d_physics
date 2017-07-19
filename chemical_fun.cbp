@@ -64,7 +64,6 @@
 		<Unit filename="networkable_systems.cpp" />
 		<Unit filename="networkable_systems.hpp" />
 		<Unit filename="networking.hpp" />
-		<Unit filename="projectile.hpp" />
 		<Unit filename="state.hpp" />
 		<Unit filename="systems.hpp" />
 		<Unit filename="util.hpp" />
