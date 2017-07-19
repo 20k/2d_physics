@@ -982,6 +982,18 @@ int main()
             projectile_manage.tick(dt_s, st);
         }
 
+        if(controls.controls_state == 0)
+        {
+            if(frame > 1 && ONCE_MACRO(sf::Keyboard::Space))
+            {
+                physics_object_manage.tick(dt_s, st);
+
+                physics_object_manage.check_interaction(dt_s, st, physics_object_manage);
+
+                physics_object_manage.resolve_barrier_collisions(dt_s, st);
+            }
+        }
+
         net_state.tick_cleanup();
         net_state.tick_join_game(dt_s);
         net_state.tick();

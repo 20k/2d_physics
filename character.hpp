@@ -118,7 +118,7 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
         renderable::render(win, pos);
     }
 
-    /*vec2f reflect_physics(vec2f next_pos, physics_barrier* bar)
+    vec2f reflect_physics(vec2f next_pos, physics_barrier* bar)
     {
         vec2f cdir = (next_pos - pos).norm();
         float clen = (next_pos - pos).length();
@@ -133,7 +133,7 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
         next_pos = ndir * clen + pos;// + to_line - to_line.norm() * 0.25f;
 
         return next_pos;
-    }*/
+    }
 
     float speed_modulate(float in_speed, float angle) const
     {
@@ -291,7 +291,8 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
         {
             if(crosses_with_normal(pos, next_pos, bar))
             {
-                next_pos = stick_physics(next_pos, bar, min_bar, accum);
+                //next_pos = stick_physics(next_pos, bar, min_bar, accum);
+                next_pos = reflect_physics(next_pos, bar);
             }
 
             float line_jump_dist = 2;
@@ -404,9 +405,9 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
         int num = 0;
 
-        int relax_count = 10;
+        int relax_count = 1;
 
-        for(int kk=0; kk<relax_count; kk++)
+        //for(int kk=0; kk<relax_count; kk++)
         for(int i=0; i<items.objs.size(); i++)
         {
             physics_object_base* obj = items.objs[i];
@@ -414,11 +415,11 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             if((void*)this == (void*)obj)
                 continue;
 
-            float rdist = 15.f;
+            float rdist = 40.f;
 
             vec2f their_pos = obj->pos;
 
-            vec2f to_them = their_pos - next_pos;
+            vec2f to_them = their_pos - pos;
 
             /*if(to_them.length() >= rdist)
             {
@@ -429,16 +430,19 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
             next_pos = their_pos - to_them.norm() * rdist;*/
 
-            //if(to_them.length() < 0.1)
-            //    continue;
+            float tlen = to_them.length();
 
-            if(to_them.length() < rdist)
+            vec2f nto_them = (to_them / tlen);
+
+            #if 0
+
+            if(tlen < rdist)
             {
-                float extra = rdist - to_them.length();
+                float extra = rdist - tlen;
 
                 //next_pos = their_pos - to_them.norm() * rdist;
 
-                next_pos = next_pos - to_them.norm() * extra / relax_count;
+                next_pos = next_pos - nto_them * extra * 0.5f / relax_count;
 
                 //acceleration += -to_them * GRAVITY_STRENGTH / 5.f;
 
@@ -447,14 +451,40 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
                 //continue;
             }
 
-            float force = (1.f/(to_them.length() * to_them.length())) * 0.55f;
+            if(tlen < rdist * 2.f)
+            {
+                float target_hold = rdist * 1.5f;
+
+                if(tlen > target_hold)
+                {
+                    float extra = tlen - target_hold;
+
+                    accum += nto_them * extra * 0.001f / relax_count;
+
+                    //next_pos = next_pos + nto_them * extra / 5.f;
+                }
+                /*if(tlen < target_hold - 2.f)
+                {
+                    float extra = target_hold - tlen;
+
+                    accum += -nto_them * extra * 0.01f / relax_count;
+
+                    //next_pos = next_pos - nto_them * extra / 5.f;
+                }*/
+            }
+            #endif
+
+            if(to_them.length() < 1.)
+                continue;
+
+            float force = (1.f/(tlen * tlen)) * 2.55f;
 
             //if(force > 10)
             //    force = 10;
 
             //next_pos = next_pos - to_them.norm() * force;
 
-            accum += -to_them.norm() * force / relax_count;
+            accum += -nto_them * force / relax_count;
 
             /*vec2f test_next = pos - to_them.norm() * extra / 2.f;
 
@@ -498,9 +528,9 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
         vec2f friction = {1.f, 1.f};
 
-        if(stuck_to_surface)
+        //if(stuck_to_surface)
         {
-            friction = {0.5f, 0.5};
+            friction = {0.98f, 0.98f};
         }
 
         //printf("%f\n", xv);
@@ -528,9 +558,9 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
         last_dt = dt;
 
-        if((next_pos - pos).length() > 1000.f * 1000.f * dt)
+        if((next_pos - pos).length() > 10.f)
         {
-            vec2f diff = -next_pos + ((next_pos - pos).norm() * 1000.f * 1000.f * dt + pos);
+            vec2f diff = -next_pos + ((next_pos - pos).norm() * 10.f + pos);
 
             next_pos += diff;
             //pos += diff;
