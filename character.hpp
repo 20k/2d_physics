@@ -90,6 +90,8 @@ struct physics_object_client : virtual physics_object_base, virtual networkable_
 
 struct physics_object_host : virtual physics_object_base, virtual networkable_host
 {
+    bool fixed = false;
+
     vec2f last_pos;
     vec2f leftover_pos_adjustment;
 
@@ -107,6 +109,9 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
     float last_dt = 1.f;
 
     bool has_friction = true;
+
+    int num_interacting = 0;
+    float interaction_distance = 0.f;
 
     physics_object_host(int team, network_state& ns) : physics_object_base(team), collideable(team, collide::RAD), networkable_host(ns)
     {
@@ -397,6 +402,9 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
     virtual void interact(float dt_s, chemical_interaction_base<physics_object_base>& items) override
     {
+        if(fixed)
+            return;
+
         vec2f next_pos = try_next;
 
         ///relax later
@@ -413,6 +421,11 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             physics_object_base* obj = items.objs[i];
 
             if((void*)this == (void*)obj)
+                continue;
+
+            physics_object_host* real = dynamic_cast<physics_object_host*>(obj);
+
+            if(!real)
                 continue;
 
             float rdist = 40.f;
@@ -433,6 +446,20 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             float tlen = to_them.length();
 
             vec2f nto_them = (to_them / tlen);
+
+            float approx_vel = (try_next - pos).length();
+            float their_approx = (real->pos - real->last_pos).length();
+
+            if(tlen < rdist * 4)
+            {
+                num_interacting++;
+
+                interaction_distance += 1.f - (tlen / (rdist * 4));
+
+                float tdist = 1.f - (tlen / (rdist * 4));
+
+                next_pos = (next_pos - pos).norm() * mix((next_pos - pos).length(), their_approx, 0.1f * tdist) + pos;
+            }
 
             #if 0
 
@@ -528,10 +555,20 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
         vec2f friction = {1.f, 1.f};
 
-        //if(stuck_to_surface)
+        if(stuck_to_surface)
         {
             friction = {0.98f, 0.98f};
         }
+
+        /*if(num_interacting > 0)
+        {
+            friction = friction - (interaction_distance) * 0.3f;
+
+            friction = clamp(friction, 0.5f, 1.f);
+        }*/
+
+        num_interacting = 0;
+        interaction_distance = 0.f;
 
         //printf("%f\n", xv);
 
@@ -569,12 +606,18 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
         pos += leftover_pos_adjustment;
         leftover_pos_adjustment = {0,0};
 
+        if(fixed)
+        {
+            next_pos = pos;
+        }
+
         last_pos = pos;
         pos = next_pos;
 
         set_collision_pos(pos);
 
         side_time += dt;
+
     }
 
     void do_gravity(vec2f dir)

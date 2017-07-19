@@ -663,6 +663,39 @@ struct debug_controls
         }
     }
 
+    void spawn_continuous_fixed(vec2f mpos, state& st)
+    {
+        if(suppress_mouse)
+            return;
+
+        sf::Mouse mouse;
+
+        if(mouse.isButtonPressed(sf::Mouse::Left) && !has_last_spawn)
+        {
+            last_spawn_pos = mpos;
+            has_last_spawn = true;
+        }
+
+        if(mouse.isButtonPressed(sf::Mouse::Left))
+        {
+            vec2f dist = (mpos - last_spawn_pos);
+
+            float spacing = 20.f;
+
+            if(dist.length() > spacing)
+            {
+                physics_object_host* c = dynamic_cast<physics_object_host*>(st.physics_object_manage.make_new<physics_object_host>(1, st.net_state));
+
+                c->pos = mpos;
+                c->last_pos = c->pos;
+                c->init_collision_pos(c->pos);
+                c->fixed = true;
+
+                last_spawn_pos = mpos;
+            }
+        }
+    }
+
     bool show_normals = false;
 
     void editor_controls(vec2f mpos, state& st)
@@ -671,7 +704,7 @@ struct debug_controls
 
         ImGui::Begin("Tools", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-        std::vector<std::string> tools{"Line Draw", "Spawn Point", "Connected Line Tool", "Drag Line Tool", "Spawn", "Spawn Cont"};
+        std::vector<std::string> tools{"Line Draw", "Spawn Point", "Connected Line Tool", "Drag Line Tool", "Spawn", "Spawn Cont", "Spawn Fixed"};
 
         for(int i=0; i<tools.size(); i++)
         {
@@ -732,6 +765,11 @@ struct debug_controls
         if(tools_state == 5)
         {
             spawn_continuous(mpos, st);
+        }
+
+        if(tools_state == 6)
+        {
+            spawn_continuous_fixed(mpos, st);
         }
 
         ImGui::Checkbox("Show normals", &show_normals);
