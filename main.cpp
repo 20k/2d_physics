@@ -680,7 +680,7 @@ struct debug_controls
         {
             vec2f dist = (mpos - last_spawn_pos);
 
-            float spacing = 20.f;
+            float spacing = 40.f;
 
             if(dist.length() > spacing)
             {
