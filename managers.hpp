@@ -205,7 +205,7 @@ struct collideable_manager_base : virtual object_manager<T>
 
 struct timestep_state
 {
-    #define NO_FIXED
+    //#define NO_FIXED
 
     float get_max_step(float dt_s)
     {
@@ -223,11 +223,11 @@ struct timestep_state
         #ifndef NO_FIXED
         saved_timestep += dt_s;
 
-        int num = floor(saved_timestep / get_max_step());
+        int num = floor(saved_timestep / get_max_step(dt_s));
 
         num = clamp(num, 0, 1);
 
-        saved_timestep -= num * get_max_step();
+        saved_timestep -= num * get_max_step(dt_s);
 
         return num;
         #else

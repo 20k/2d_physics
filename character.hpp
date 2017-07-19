@@ -404,6 +404,9 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
         int num = 0;
 
+        int relax_count = 10;
+
+        for(int kk=0; kk<relax_count; kk++)
         for(int i=0; i<items.objs.size(); i++)
         {
             physics_object_base* obj = items.objs[i];
@@ -426,26 +429,32 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
             next_pos = their_pos - to_them.norm() * rdist;*/
 
-            if(to_them.length() < 0.1)
-                continue;
+            //if(to_them.length() < 0.1)
+            //    continue;
 
             if(to_them.length() < rdist)
             {
                 float extra = rdist - to_them.length();
 
-                next_pos = their_pos - to_them.norm() * rdist;
+                //next_pos = their_pos - to_them.norm() * rdist;
+
+                next_pos = next_pos - to_them.norm() * extra / relax_count;
+
+                //acceleration += -to_them * GRAVITY_STRENGTH / 5.f;
+
+                //acceleration += -to_them.norm() * extra * 1000.f * 1.f;
 
                 //continue;
             }
 
             float force = (1.f/(to_them.length() * to_them.length())) * 0.55f;
 
-            if(force > 10)
-                force = 10;
+            //if(force > 10)
+            //    force = 10;
 
             //next_pos = next_pos - to_them.norm() * force;
 
-            accum += -to_them.norm() * force;
+            accum += -to_them.norm() * force / relax_count;
 
             /*vec2f test_next = pos - to_them.norm() * extra / 2.f;
 
@@ -455,12 +464,12 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             num = 1;*/
         }
 
-        leftover_pos_adjustment = (next_pos - try_next);
+        //leftover_pos_adjustment = (next_pos - try_next);
 
-        if((next_pos - pos).length() > 10.f)
+        /*if((next_pos - pos).length() > 10.f)
         {
             next_pos = (next_pos - pos).norm() * 10.f + pos;
-        }
+        }*/
 
         //if(num > 0)
         //    accum = accum / (float)num;
@@ -518,6 +527,14 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
         vec2f next_pos = adjust_next_pos_for_physics(try_next, st.physics_barrier_manage);
 
         last_dt = dt;
+
+        if((next_pos - pos).length() > 1000.f * 1000.f * dt)
+        {
+            vec2f diff = -next_pos + ((next_pos - pos).norm() * 1000.f * 1000.f * dt + pos);
+
+            next_pos += diff;
+            //pos += diff;
+        }
 
         pos += leftover_pos_adjustment;
         leftover_pos_adjustment = {0,0};
