@@ -646,6 +646,9 @@ struct debug_controls
         ImGui::SliderFloat("Fluid thickness", &params.fluid_thickness, 0.0001f, 0.4999f);
         ImGui::SliderFloat("General repulsion mult", &params.general_repulsion_mult, 0.0001f, 20.f);
 
+        ImGui::SliderFloat("Particle size", &params.particle_size, 0.05, 10.f);
+        ImGui::SliderFloat("Particle mass", &params.particle_mass, 0.05, 10.f);
+
         ImGui::End();
     }
 

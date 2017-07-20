@@ -97,6 +97,9 @@ struct particle_parameters
     ///fluid thickness > 0.3 = very pastey
     float fluid_thickness = 0.01f;
     float general_repulsion_mult = 2.5f;
+
+    float particle_size = 1.f;
+    float particle_mass = 1.f;
 };
 
 ///solids next
