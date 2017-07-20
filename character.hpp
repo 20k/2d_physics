@@ -487,6 +487,8 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
             #define BONDING_KEEP_DISTANCE 10.f
 
+            vec2f saved_next = next_pos;
+
             ///maybe allow solids to trap a layer of liquids for fun?
             ///is solid will later be a derived property
             ///need rotation next, ie bond stiffness
@@ -524,10 +526,13 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
                             float unsigned_angle_frac = 1.f - angle_frac;
 
-                            base_accel = base_accel * 0.25f / relax_count;
+                            float force_mult = 0.25f;
+
+                            base_accel = base_accel * force_mult / relax_count;
 
                             //accum += base_accel / relax_count;
 
+                            ///this is causing the oscillation, because we accelerate when shifting next_pos
                             next_pos = next_pos + base_accel * unsigned_angle_frac;
 
                             float sangle = signed_angle_between_vectors(my_bond_dir, -their_bond_dir) / 50.f;
@@ -557,6 +562,10 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
                     }
                 }
             }
+
+            vec2f diff = (next_pos - saved_next);
+
+            leftover_pos_adjustment += diff/1.1f;
 
 
             float rdist = 40.f;
