@@ -88,6 +88,17 @@ struct physics_object_client : virtual physics_object_base, virtual networkable_
     }
 };
 
+struct particle_parameters
+{
+    float bonding_keep_distance = 10.f;
+    float hard_knock_distance = 30.f;
+    float bond_strength = 0.45;
+
+    ///fluid thickness > 0.3 = very pastey
+    float fluid_thickness = 0.01f;
+    float general_repulsion_mult = 2.5f;
+};
+
 ///solids next
 struct physics_object_host : virtual physics_object_base, virtual networkable_host
 {
@@ -444,12 +455,7 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
         should_render = true;
     }
 
-    float hard_knock_distance = 30.f;
-    float bond_strength = 0.45;
-
-    ///fluid thickness > 0.3 = very pastey
-    float fluid_thickness = 0.01f;
-    float general_repulsion_mult = 2.5f;
+    particle_parameters params;
 
     virtual void interact(float dt_s, chemical_interaction_base<physics_object_base>& items, state& st) override
     {
@@ -489,15 +495,13 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
             //bool ignore = false;
 
-            #define BONDING_KEEP_DISTANCE 10.f
-
             vec2f saved_next = next_pos;
 
             ///maybe allow solids to trap a layer of liquids for fun?
             ///is solid will later be a derived property
             ///need rotation next, ie bond stiffness
             ///also want to rotate uninterfacing molecules so that they try and bond perhaps?
-            if(is_solid && real->is_solid && tlen > hard_knock_distance)
+            if(is_solid && real->is_solid && tlen > params.hard_knock_distance)
             {
                 for(int my_bond_c = 0; my_bond_c < num_bonds; my_bond_c++)
                 {
@@ -515,7 +519,7 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
                         float inter_bond_distance = my_to_them.length();
 
-                        if(inter_bond_distance < BONDING_KEEP_DISTANCE)
+                        if(inter_bond_distance < params.bonding_keep_distance)
                         {
                             vec2f base_accel = my_to_them;
 
@@ -530,7 +534,7 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
                             float unsigned_angle_frac = 1.f - angle_frac;
 
-                            float force_mult = bond_strength;
+                            float force_mult = params.bond_strength;
 
                             base_accel = base_accel * force_mult / relax_count;
 
@@ -571,9 +575,7 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
             leftover_pos_adjustment += diff/1.1f;
 
-
             float rdist = 40.f;
-
 
             /*if(to_them.length() >= rdist)
             {
@@ -607,7 +609,7 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
                 ///this check seems to be more successful than the above
                 //next_pos = mix((next_pos - pos), (real->pos - real->last_pos), 0.01f * tdist / relax_count) + pos;
-                next_pos = mix((next_pos - pos), (real->try_next - real->pos), fluid_thickness * tdist / relax_count) + pos;
+                next_pos = mix((next_pos - pos), (real->try_next - real->pos), params.fluid_thickness * tdist / relax_count) + pos;
 
                 /*if(real->fixed)
                 {
@@ -617,9 +619,9 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
                 //next_pos = mix(next_pos - pos, (real->try_next - real->pos), 0.45f) + pos;
            }
 
-           if(tlen < hard_knock_distance)
+           if(tlen < params.hard_knock_distance)
            {
-                float extra = hard_knock_distance - tlen;
+                float extra = params.hard_knock_distance - tlen;
 
                 next_pos = next_pos - to_them.norm() * extra * 2.f / relax_count;
            }
@@ -674,10 +676,10 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             if(to_them.length() < 0.1)
                 continue;
 
-            float force_mult = general_repulsion_mult;
+            float force_mult = params.general_repulsion_mult;
 
             if(is_solid)
-                force_mult = general_repulsion_mult * 2;
+                force_mult = params.general_repulsion_mult * 2;
 
             float force = (1.f/(tlen * tlen)) * force_mult;
 

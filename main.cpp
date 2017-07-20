@@ -634,6 +634,21 @@ struct debug_controls
     ///0 -> solid, 1 -> liquid, 2 -> gas
     int matter_phase = 0;
 
+    particle_parameters params;
+
+    void param_editor()
+    {
+        ImGui::Begin("Parameter Editor");
+
+        ImGui::SliderFloat("Bonding keep distance", &params.bonding_keep_distance, 0.1f, 50.f);
+        ImGui::SliderFloat("Hard knock distance", &params.hard_knock_distance, 1.f, 100.f);
+        ImGui::SliderFloat("Bond strength", &params.bond_strength, 0.01f, 0.4999f);
+        ImGui::SliderFloat("Fluid thickness", &params.fluid_thickness, 0.0001f, 0.4999f);
+        ImGui::SliderFloat("General repulsion mult", &params.general_repulsion_mult, 0.0001f, 20.f);
+
+        ImGui::End();
+    }
+
     physics_object_host* spawn(vec2f mpos, state& st, float spacing, int phase)
     {
         sf::Mouse mouse;
@@ -669,6 +684,8 @@ struct debug_controls
                     c->is_solid = false;
                     c->is_gas = true;
                 }
+
+                c->params = params;
 
                 last_spawn_pos = mpos;
 
@@ -799,6 +816,8 @@ struct debug_controls
         ImGui::Text((std::string("Cur Phase: ") + std::to_string(matter_phase)).c_str());
 
         ImGui::End();
+
+        param_editor();
     }
 
     void tick(state& st)
