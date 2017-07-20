@@ -541,34 +541,15 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
                             base_accel = base_accel * force_mult / relax_count;
 
-                            //accum += base_accel / relax_count;
-
                             ///this is causing the oscillation, because we accelerate when shifting next_pos
                             next_pos = next_pos + base_accel * unsigned_angle_frac;
 
                             float sangle = signed_angle_between_vectors(my_bond_dir, -their_bond_dir) / 50.f;
 
-                            //printf("sangle %f\n", sangle);
-                            //printf("real_angle %f\n", angle_between_vectors(my_bond_dir, their_bond_dir));
-
                             float abound = M_PI/5.f;
-
-                            //sangle = clamp(sangle, -abound, abound);
 
                             //if(fabs(sangle) > M_PI/1000.f)
                                 rotation_accumulate += (sangle) / relax_count;
-
-                            //printf("%f\n", signed_angle_between_vectors(my_bond_dir, their_bond_dir));
-
-                            //ignore = true;
-
-                            /*sf::CircleShape shape;
-                            shape.setRadius(6);
-                            shape.setOrigin(3, 3);
-
-                            shape.setPosition(my_bond_pos.x(), my_bond_pos.y());
-
-                            st.debug_window.draw(shape);*/
                         }
                     }
                 }
@@ -580,21 +561,10 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
             float rdist = 40.f;
 
-            /*if(to_them.length() >= rdist)
-            {
-                continue;
-            }*/
-
-            /*float extra = rdist - to_them.length();
-
-            next_pos = their_pos - to_them.norm() * rdist;*/
-
-
             vec2f nto_them = (to_them / tlen);
 
             float approx_vel = (try_next - pos).length();
             float their_approx = ((real->pos - real->last_pos)).length();
-            //float their_approx = ((real->pos - real->last_pos) + (vec2f){0, 1} * GRAVITY_STRENGTH * ((dt_s + last_dt)/2.f) * dt_s * FORCE_MULTIPLIER).length();
 
             if(tlen < rdist * 4 && !is_gas)
             {
@@ -604,77 +574,15 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
                 float tdist = 1.f - (tlen / (rdist * 4));
 
-                //next_pos = (next_pos - pos).norm() * mix((next_pos - pos).length(), their_approx, 0.45f) + pos;
-
-                ///this essentially controls the dial between liquid and gas
-                ///below check is good for liquids
-                //next_pos = (next_pos - pos).norm() * mix((next_pos - pos).length(), their_approx, 0.1f * tdist / relax_count) + pos;
-
-                ///this check seems to be more successful than the above
-                //next_pos = mix((next_pos - pos), (real->pos - real->last_pos), 0.01f * tdist / relax_count) + pos;
                 next_pos = mix((next_pos - pos), (real->try_next - real->pos), params.fluid_thickness * tdist / relax_count) + pos;
+            }
 
-                /*if(real->fixed)
-                {
-                    printf("%f\n", (real->try_next - real->pos).length());
-                }*/
-
-                //next_pos = mix(next_pos - pos, (real->try_next - real->pos), 0.45f) + pos;
-           }
-
-           if(tlen < params.hard_knock_distance)
-           {
+            if(tlen < params.hard_knock_distance)
+            {
                 float extra = params.hard_knock_distance - tlen;
 
                 next_pos = next_pos - to_them.norm() * extra * 2.f / relax_count;
-           }
-
-           ///do solids here
-           ///model valence shells and have this affect bonding angles
-           ///ie i have no idea what i'm doing google bond angles
-
-            #if 0
-
-            if(tlen < rdist)
-            {
-                float extra = rdist - tlen;
-
-                //next_pos = their_pos - to_them.norm() * rdist;
-
-                next_pos = next_pos - nto_them * extra * 0.5f / relax_count;
-
-                //acceleration += -to_them * GRAVITY_STRENGTH / 5.f;
-
-                //acceleration += -to_them.norm() * extra * 1000.f * 1.f;
-
-                //continue;
             }
-
-            if(tlen < rdist * 2.f)
-            {
-                float target_hold = rdist * 1.5f;
-
-                if(tlen > target_hold)
-                {
-                    float extra = tlen - target_hold;
-
-                    accum += nto_them * extra * 0.001f / relax_count;
-
-                    //next_pos = next_pos + nto_them * extra / 5.f;
-                }
-                /*if(tlen < target_hold - 2.f)
-                {
-                    float extra = target_hold - tlen;
-
-                    accum += -nto_them * extra * 0.01f / relax_count;
-
-                    //next_pos = next_pos - nto_them * extra / 5.f;
-                }*/
-            }
-            #endif
-
-            //if(ignore)
-            //    continue;
 
             if(to_them.length() < 0.1)
                 continue;
@@ -689,27 +597,13 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             if(force > 10)
                 force = 10;
 
-            //next_pos = next_pos - to_them.norm() * force;
-
             accum += -nto_them * force / relax_count;
-
-            /*vec2f test_next = pos - to_them.norm() * extra / 2.f;
-
-            accum += test_next - pos;
-
-            //num++;
-            num = 1;*/
         }
-
-        //leftover_pos_adjustment = (next_pos - try_next);
 
         /*if((next_pos - pos).length() > 10.f)
         {
             next_pos = (next_pos - pos).norm() * 10.f + pos;
         }*/
-
-        //if(num > 0)
-        //    accum = accum / (float)num;
 
         /*float max_repulse = 1.f;
 
@@ -717,8 +611,6 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
         {
             accum = accum.norm() * max_repulse;
         }*/
-
-        //try_next = (next_pos - pos).length() * (next_pos + accum - pos).norm() + pos;
 
         try_next = next_pos;
 
