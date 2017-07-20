@@ -119,6 +119,8 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
     bool is_solid = true;
 
+    float rotation_accumulate = 0.f;
+
     vec2f get_bond_dir_absolute(int num)
     {
         vec2f dir;
@@ -486,7 +488,8 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
             ///maybe allow solids to trap a layer of liquids for fun?
             ///is solid will later be a derived property
-            if(is_solid && real->is_solid && !real->fixed && tlen > hard_knock_distance)
+            ///need rotation next, ie bond stiffness
+            if(is_solid && real->is_solid && tlen > hard_knock_distance)
             {
                 for(int my_bond_c = 0; my_bond_c < num_bonds; my_bond_c++)
                 {
@@ -508,11 +511,36 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
                         {
                             vec2f base_accel = my_to_them;
 
+                            float unsigned_angle = fabs(angle_between_vectors(my_bond_dir, -their_bond_dir));
+
+                            float max_bond_angle = d2r(30.f);
+
+                            float angle_frac = unsigned_angle / max_bond_angle;
+
+                            if(angle_frac > 1)
+                                angle_frac = 1;
+
+                            float unsigned_angle_frac = 1.f - angle_frac;
+
                             base_accel = base_accel * 0.25f / relax_count;
 
                             //accum += base_accel / relax_count;
 
-                            next_pos = next_pos + base_accel;
+                            next_pos = next_pos + base_accel * unsigned_angle_frac;
+
+                            float sangle = signed_angle_between_vectors(my_bond_dir, -their_bond_dir) / 50.f;
+
+                            //printf("sangle %f\n", sangle);
+                            //printf("real_angle %f\n", angle_between_vectors(my_bond_dir, their_bond_dir));
+
+                            float abound = M_PI/5.f;
+
+                            //sangle = clamp(sangle, -abound, abound);
+
+                            //if(fabs(sangle) > M_PI/1000.f)
+                                rotation_accumulate += (sangle) / relax_count;
+
+                            //printf("%f\n", signed_angle_between_vectors(my_bond_dir, their_bond_dir));
 
                             ignore = true;
 
@@ -620,13 +648,18 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             }
             #endif
 
-            if(ignore)
-                continue;
+            //if(ignore)
+            //    continue;
 
             if(to_them.length() < 0.1)
                 continue;
 
-            float force = (1.f/(tlen * tlen)) * 2.55f;
+            float force_mult = 2.55;
+
+            if(is_solid)
+                force_mult = 5.55;
+
+            float force = (1.f/(tlen * tlen)) * force_mult;
 
             //if(force > 10)
             //    force = 10;
@@ -665,6 +698,8 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
         try_next = next_pos;
 
         acceleration += accum * 1000.f * 1000.f;
+
+        //rotation += rotation_accumulate;
 
         //try_next = next_pos;
     }
@@ -740,6 +775,8 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
         side_time += dt;
 
+        rotation += rotation_accumulate;
+        rotation_accumulate = 0.f;
     }
 
     void do_gravity(vec2f dir)
