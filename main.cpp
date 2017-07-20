@@ -631,11 +631,11 @@ struct debug_controls
     vec2f last_spawn_pos;
     bool has_last_spawn = false;
 
-    void spawn_continuous(vec2f mpos, state& st)
-    {
-        if(suppress_mouse)
-            return;
+    ///0 -> solid, 1 -> liquid, 2 -> gas
+    int matter_phase = 0;
 
+    physics_object_host* spawn(vec2f mpos, state& st, float spacing, int phase)
+    {
         sf::Mouse mouse;
 
         if(mouse.isButtonPressed(sf::Mouse::Left) && !has_last_spawn)
@@ -648,8 +648,6 @@ struct debug_controls
         {
             vec2f dist = (mpos - last_spawn_pos);
 
-            float spacing = 20.f;
-
             if(dist.length() > spacing)
             {
                 physics_object_host* c = dynamic_cast<physics_object_host*>(st.physics_object_manage.make_new<physics_object_host>(1, st.net_state));
@@ -658,9 +656,35 @@ struct debug_controls
                 c->last_pos = c->pos;
                 c->init_collision_pos(c->pos);
 
+                if(phase == 0)
+                {
+                    c->is_solid = true;
+                }
+                else if(phase == 1)
+                {
+                    c->is_solid = false;
+                }
+                else if(phase == 2)
+                {
+                    c->is_solid = false;
+                    c->is_gas = true;
+                }
+
                 last_spawn_pos = mpos;
+
+                return c;
             }
         }
+
+        return nullptr;
+    }
+
+    void spawn_continuous(vec2f mpos, state& st)
+    {
+        if(suppress_mouse)
+            return;
+
+        spawn(mpos, st, 20, matter_phase);
     }
 
     void spawn_continuous_fixed(vec2f mpos, state& st)
@@ -668,32 +692,12 @@ struct debug_controls
         if(suppress_mouse)
             return;
 
-        sf::Mouse mouse;
+        auto ptr = spawn(mpos, st, 40, matter_phase);
 
-        if(mouse.isButtonPressed(sf::Mouse::Left) && !has_last_spawn)
-        {
-            last_spawn_pos = mpos;
-            has_last_spawn = true;
-        }
+        if(ptr == nullptr)
+            return;
 
-        if(mouse.isButtonPressed(sf::Mouse::Left))
-        {
-            vec2f dist = (mpos - last_spawn_pos);
-
-            float spacing = 40.f;
-
-            if(dist.length() > spacing)
-            {
-                physics_object_host* c = dynamic_cast<physics_object_host*>(st.physics_object_manage.make_new<physics_object_host>(1, st.net_state));
-
-                c->pos = mpos;
-                c->last_pos = c->pos;
-                c->init_collision_pos(c->pos);
-                c->fixed = true;
-
-                last_spawn_pos = mpos;
-            }
-        }
+        ptr->fixed = true;
     }
 
     bool show_normals = false;
@@ -775,6 +779,24 @@ struct debug_controls
         ImGui::Checkbox("Show normals", &show_normals);
 
         st.physics_barrier_manage.show_normals = show_normals;
+
+        if(ImGui::Button("Solid"))
+        {
+            matter_phase = 0;
+        }
+
+        ///LIQUIIIIIIIIID
+        if(ImGui::Button("Liquid"))
+        {
+            matter_phase = 1;
+        }
+
+        if(ImGui::Button("Gas"))
+        {
+            matter_phase = 2;
+        }
+
+        ImGui::Text((std::string("Cur Phase: ") + std::to_string(matter_phase)).c_str());
 
         ImGui::End();
     }

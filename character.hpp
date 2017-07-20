@@ -118,6 +118,7 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
     float bond_length = 40.f;
 
     bool is_solid = true;
+    bool is_gas = false;
 
     float rotation_accumulate = 0.f;
 
@@ -489,6 +490,7 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             ///maybe allow solids to trap a layer of liquids for fun?
             ///is solid will later be a derived property
             ///need rotation next, ie bond stiffness
+            ///also want to rotate uninterfacing molecules so that they try and bond perhaps?
             if(is_solid && real->is_solid && tlen > hard_knock_distance)
             {
                 for(int my_bond_c = 0; my_bond_c < num_bonds; my_bond_c++)
@@ -576,7 +578,7 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             float their_approx = ((real->pos - real->last_pos)).length();
             //float their_approx = ((real->pos - real->last_pos) + (vec2f){0, 1} * GRAVITY_STRENGTH * ((dt_s + last_dt)/2.f) * dt_s * FORCE_MULTIPLIER).length();
 
-            if(tlen < rdist * 4)
+            if(tlen < rdist * 4 && !is_gas)
             {
                 num_interacting++;
 
