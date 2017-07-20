@@ -526,7 +526,7 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
                             float unsigned_angle_frac = 1.f - angle_frac;
 
-                            float force_mult = 0.25f;
+                            float force_mult = 0.45f;
 
                             base_accel = base_accel * force_mult / relax_count;
 
