@@ -578,6 +578,9 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             float their_approx = ((real->pos - real->last_pos)).length();
             //float their_approx = ((real->pos - real->last_pos) + (vec2f){0, 1} * GRAVITY_STRENGTH * ((dt_s + last_dt)/2.f) * dt_s * FORCE_MULTIPLIER).length();
 
+            ///fluid thickness > 0.3 = very pastey
+            float fluid_thickness = 0.01f;
+
             if(tlen < rdist * 4 && !is_gas)
             {
                 num_interacting++;
@@ -593,12 +596,18 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
                 //next_pos = (next_pos - pos).norm() * mix((next_pos - pos).length(), their_approx, 0.1f * tdist / relax_count) + pos;
 
                 ///this check seems to be more successful than the above
-                next_pos = mix((next_pos - pos), (real->pos - real->last_pos), 0.01f * tdist / relax_count) + pos;
+                //next_pos = mix((next_pos - pos), (real->pos - real->last_pos), 0.01f * tdist / relax_count) + pos;
+                next_pos = mix((next_pos - pos), (real->try_next - real->pos), fluid_thickness * tdist / relax_count) + pos;
+
+                /*if(real->fixed)
+                {
+                    printf("%f\n", (real->try_next - real->pos).length());
+                }*/
 
                 //next_pos = mix(next_pos - pos, (real->try_next - real->pos), 0.45f) + pos;
            }
 
-           if(tlen < hard_knock_distance && is_solid)
+           if(tlen < hard_knock_distance)
            {
                float extra = hard_knock_distance - tlen;
 
@@ -663,8 +672,8 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
             float force = (1.f/(tlen * tlen)) * force_mult;
 
-            //if(force > 10)
-            //    force = 10;
+            if(force > 10)
+                force = 10;
 
             //next_pos = next_pos - to_them.norm() * force;
 
@@ -742,6 +751,11 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
         next_pos += player_acceleration * dt * dt;
 
         try_next = next_pos;
+
+        if(fixed)
+        {
+            try_next = pos;
+        }
 
         player_acceleration = {0,0};
         acceleration = {0,0};
