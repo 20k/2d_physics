@@ -893,7 +893,7 @@ int main()
 
     debug_controls controls;
 
-    state st(physics_object_manage, physics_barrier_manage, game_world_manage, renderable_manage, projectile_manage, cam, net_state);
+    state st(physics_object_manage, physics_barrier_manage, game_world_manage, renderable_manage, projectile_manage, cam, net_state, win);
 
     st.physics_object_manage.system_network_id = 0;
     st.physics_barrier_manage.system_network_id = 1;
@@ -1044,8 +1044,6 @@ int main()
 
         cam.update_camera();
 
-        win.clear();
-
         projectile_manage.cleanup(st);
 
         renderable_manage.render(win);
@@ -1057,6 +1055,7 @@ int main()
 
         ImGui::Render();
         win.display();
+        win.clear();
 
         sf::sleep(sf::milliseconds(1));
 

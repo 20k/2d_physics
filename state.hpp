@@ -9,6 +9,11 @@ struct projectile_manager;
 struct network_state;
 struct camera;
 
+namespace sf
+{
+    struct RenderWindow;
+}
+
 struct state
 {
     physics_object_manager& physics_object_manage;
@@ -18,6 +23,7 @@ struct state
     projectile_manager& projectile_manage;
     camera& cam;
     network_state& net_state;
+    sf::RenderWindow& debug_window;
     float dt_s = 0.1f;
 
     state(physics_object_manager& pphysics_object_manage,
@@ -26,7 +32,8 @@ struct state
           renderable_manager& prenderable_manage,
           projectile_manager& pprojectile_manage,
           camera& pcam,
-          network_state& pnet_state)
+          network_state& pnet_state,
+          sf::RenderWindow& pdebug_window)
           :
              physics_object_manage(pphysics_object_manage),
              physics_barrier_manage(pphysics_barrier_manage),
@@ -34,7 +41,8 @@ struct state
              renderable_manage(prenderable_manage),
              projectile_manage(pprojectile_manage),
              cam(pcam),
-             net_state(pnet_state)
+             net_state(pnet_state),
+             debug_window(pdebug_window)
      {}
 };
 

@@ -252,7 +252,7 @@ struct chemical_interaction_base : virtual object_manager<T>
             {
                 T* my_t = object_manager<T>::objs[i];
 
-                my_t->interact(fts.get_max_step(dt_s), other);
+                my_t->interact(fts.get_max_step(dt_s), other, st);
             }
         }
 

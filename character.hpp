@@ -7,7 +7,7 @@ struct physics_object_base;
 
 struct does_chemical_reactions
 {
-    virtual void interact(float dt_s, chemical_interaction_base<physics_object_base>& items)
+    virtual void interact(float dt_s, chemical_interaction_base<physics_object_base>& items, state& st)
     {
 
     }
@@ -84,7 +84,7 @@ struct physics_object_client : virtual physics_object_base, virtual networkable_
 
     void render(sf::RenderWindow& win) override
     {
-        renderable::render(win, pos);
+        renderable::render(win, pos, rotation);
     }
 };
 
@@ -114,14 +114,54 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
     int num_interacting = 0;
     float interaction_distance = 0.f;
 
+    int num_bonds = 3;
+    float bond_length = 40.f;
+
+    bool is_solid = true;
+
+    vec2f get_bond_dir_absolute(int num)
+    {
+        vec2f dir;
+
+        if(num >= num_bonds)
+        {
+            printf("wtf are you doing, invalid bond num %i\n", num);
+            return dir;
+        }
+
+        float bond_frac = (float)num / num_bonds;
+        float bond_angle = bond_frac * 2 * M_PI;
+
+        vec2f bond_dir = {cos(bond_angle), sin(bond_angle)};
+
+        ///we're getting the absolute bond angle
+        bond_dir = bond_dir.rot(rotation);
+
+        return bond_dir;
+    }
+
     physics_object_host(int team, network_state& ns) : physics_object_base(team), collideable(team, collide::RAD), networkable_host(ns)
     {
-
+        rotation = randf_s(0.f, M_PI);
     }
 
     void render(sf::RenderWindow& win) override
     {
-        renderable::render(win, pos);
+        renderable::render(win, pos, rotation);
+
+        for(int i = 0; i < num_bonds; i++)
+        {
+            vec2f abs_dir = get_bond_dir_absolute(i);
+
+            sf::RectangleShape shape;
+            shape.setSize({bond_length, 2});
+            shape.setOrigin(0, 1);
+
+            shape.setPosition(pos.x(), pos.y());
+            shape.setRotation(r2d(abs_dir.angle()));
+
+            win.draw(shape);
+        }
     }
 
     vec2f reflect_physics(vec2f next_pos, physics_barrier* bar)
@@ -401,7 +441,7 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
         should_render = true;
     }
 
-    virtual void interact(float dt_s, chemical_interaction_base<physics_object_base>& items) override
+    virtual void interact(float dt_s, chemical_interaction_base<physics_object_base>& items, state& st) override
     {
         if(fixed)
             return;
@@ -437,6 +477,57 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
             if(!real)
                 continue;
+
+            float hard_knock_distance = 30.f;
+
+            bool ignore = false;
+
+            #define BONDING_KEEP_DISTANCE 10.f
+
+            ///maybe allow solids to trap a layer of liquids for fun?
+            ///is solid will later be a derived property
+            if(is_solid && real->is_solid && !real->fixed && tlen > hard_knock_distance)
+            {
+                for(int my_bond_c = 0; my_bond_c < num_bonds; my_bond_c++)
+                {
+                    vec2f my_bond_dir = get_bond_dir_absolute(my_bond_c);
+
+                    vec2f my_bond_pos = my_bond_dir * bond_length + pos;
+
+                    for(int their_bond_c = 0; their_bond_c < real->num_bonds; their_bond_c++)
+                    {
+                        vec2f their_bond_dir = real->get_bond_dir_absolute(their_bond_c);
+
+                        vec2f their_bond_pos = their_bond_dir * real->bond_length + real->pos;
+
+                        vec2f my_to_them = (their_bond_pos - my_bond_pos);
+
+                        float inter_bond_distance = my_to_them.length();
+
+                        if(inter_bond_distance < BONDING_KEEP_DISTANCE)
+                        {
+                            vec2f base_accel = my_to_them;
+
+                            base_accel = base_accel * 0.25f / relax_count;
+
+                            //accum += base_accel / relax_count;
+
+                            next_pos = next_pos + base_accel;
+
+                            ignore = true;
+
+                            /*sf::CircleShape shape;
+                            shape.setRadius(6);
+                            shape.setOrigin(3, 3);
+
+                            shape.setPosition(my_bond_pos.x(), my_bond_pos.y());
+
+                            st.debug_window.draw(shape);*/
+                        }
+                    }
+                }
+            }
+
 
             float rdist = 40.f;
 
@@ -476,6 +567,18 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
                 //next_pos = mix(next_pos - pos, (real->try_next - real->pos), 0.45f) + pos;
            }
+
+           if(tlen < hard_knock_distance && is_solid)
+           {
+               float extra = hard_knock_distance - tlen;
+
+                next_pos = next_pos - to_them.norm() * extra * 2.f / relax_count;
+           }
+
+
+           ///do solids here
+           ///model valence shells and have this affect bonding angles
+           ///ie i have no idea what i'm doing google bond angles
 
             #if 0
 
@@ -517,7 +620,10 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             }
             #endif
 
-            if(to_them.length() < 1.)
+            if(ignore)
+                continue;
+
+            if(to_them.length() < 0.1)
                 continue;
 
             float force = (1.f/(tlen * tlen)) * 2.55f;

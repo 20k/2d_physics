@@ -35,15 +35,16 @@ struct renderable
         generate_colour();
     }
 
-    virtual void render(sf::RenderWindow& win, vec2f pos)
+    virtual void render(sf::RenderWindow& win, vec2f pos, float rotation)
     {
         if(!should_render)
             return;
 
         sf::Sprite spr(tex);
         spr.setOrigin(tex.getSize().x/2, tex.getSize().y/2);
-        spr.setPosition({pos.x(), pos.y()});
-        spr.setColor(sf::Color(255 * col.x(), 255 * col.y(),255 * col.z()));
+        spr.setPosition(pos.x(), pos.y());
+        spr.setColor(sf::Color(255 * col.x(), 255 * col.y(), 255 * col.z()));
+        spr.setRotation(r2d(rotation));
 
         win.draw(spr);
     }
@@ -180,6 +181,7 @@ struct collideable : virtual base_class
 struct moveable : virtual base_class
 {
     vec2f pos;
+    float rotation = 0.f;
 
     bool has_default = false;
     bool on_default_side = false;
