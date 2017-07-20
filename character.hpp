@@ -444,6 +444,13 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
         should_render = true;
     }
 
+    float hard_knock_distance = 30.f;
+    float bond_strength = 0.45;
+
+    ///fluid thickness > 0.3 = very pastey
+    float fluid_thickness = 0.01f;
+    float general_repulsion_mult = 2.5f;
+
     virtual void interact(float dt_s, chemical_interaction_base<physics_object_base>& items, state& st) override
     {
         if(fixed)
@@ -452,7 +459,6 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
         vec2f next_pos = try_next;
 
         ///relax later
-
         vec2f accum = {0, 0};
 
         int num = 0;
@@ -481,9 +487,7 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             if(!real)
                 continue;
 
-            float hard_knock_distance = 30.f;
-
-            bool ignore = false;
+            //bool ignore = false;
 
             #define BONDING_KEEP_DISTANCE 10.f
 
@@ -526,7 +530,7 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
                             float unsigned_angle_frac = 1.f - angle_frac;
 
-                            float force_mult = 0.45f;
+                            float force_mult = bond_strength;
 
                             base_accel = base_accel * force_mult / relax_count;
 
@@ -549,7 +553,7 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
                             //printf("%f\n", signed_angle_between_vectors(my_bond_dir, their_bond_dir));
 
-                            ignore = true;
+                            //ignore = true;
 
                             /*sf::CircleShape shape;
                             shape.setRadius(6);
@@ -587,9 +591,6 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             float their_approx = ((real->pos - real->last_pos)).length();
             //float their_approx = ((real->pos - real->last_pos) + (vec2f){0, 1} * GRAVITY_STRENGTH * ((dt_s + last_dt)/2.f) * dt_s * FORCE_MULTIPLIER).length();
 
-            ///fluid thickness > 0.3 = very pastey
-            float fluid_thickness = 0.01f;
-
             if(tlen < rdist * 4 && !is_gas)
             {
                 num_interacting++;
@@ -618,11 +619,10 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
            if(tlen < hard_knock_distance)
            {
-               float extra = hard_knock_distance - tlen;
+                float extra = hard_knock_distance - tlen;
 
                 next_pos = next_pos - to_them.norm() * extra * 2.f / relax_count;
            }
-
 
            ///do solids here
            ///model valence shells and have this affect bonding angles
@@ -674,10 +674,10 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             if(to_them.length() < 0.1)
                 continue;
 
-            float force_mult = 2.55;
+            float force_mult = general_repulsion_mult;
 
             if(is_solid)
-                force_mult = 5.55;
+                force_mult = general_repulsion_mult * 2;
 
             float force = (1.f/(tlen * tlen)) * force_mult;
 
@@ -731,6 +731,8 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
         float dt_f = dt / last_dt;
 
         vec2f friction = {1.f, 1.f};
+
+        friction = {0.999, 0.999};
 
         if(stuck_to_surface)
         {
