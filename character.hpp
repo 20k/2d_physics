@@ -88,6 +88,7 @@ struct physics_object_client : virtual physics_object_base, virtual networkable_
     }
 };
 
+///solids next
 struct physics_object_host : virtual physics_object_base, virtual networkable_host
 {
     bool fixed = false;
@@ -413,14 +414,23 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
         int num = 0;
 
-        int relax_count = 1;
+        int relax_count = 2;
 
-        //for(int kk=0; kk<relax_count; kk++)
+        for(int kk=0; kk<relax_count; kk++)
         for(int i=0; i<items.objs.size(); i++)
         {
             physics_object_base* obj = items.objs[i];
 
             if((void*)this == (void*)obj)
+                continue;
+
+            vec2f their_pos = obj->pos;
+
+            vec2f to_them = their_pos - pos;
+
+            float tlen = to_them.length();
+
+            if(tlen > 200)
                 continue;
 
             physics_object_host* real = dynamic_cast<physics_object_host*>(obj);
@@ -430,9 +440,6 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
             float rdist = 40.f;
 
-            vec2f their_pos = obj->pos;
-
-            vec2f to_them = their_pos - pos;
 
             /*if(to_them.length() >= rdist)
             {
@@ -443,12 +450,12 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
             next_pos = their_pos - to_them.norm() * rdist;*/
 
-            float tlen = to_them.length();
 
             vec2f nto_them = (to_them / tlen);
 
             float approx_vel = (try_next - pos).length();
-            float their_approx = (real->pos - real->last_pos).length();
+            float their_approx = ((real->pos - real->last_pos)).length();
+            //float their_approx = ((real->pos - real->last_pos) + (vec2f){0, 1} * GRAVITY_STRENGTH * ((dt_s + last_dt)/2.f) * dt_s * FORCE_MULTIPLIER).length();
 
             if(tlen < rdist * 4)
             {
@@ -458,8 +465,17 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
                 float tdist = 1.f - (tlen / (rdist * 4));
 
-                next_pos = (next_pos - pos).norm() * mix((next_pos - pos).length(), their_approx, 0.1f * tdist) + pos;
-            }
+                //next_pos = (next_pos - pos).norm() * mix((next_pos - pos).length(), their_approx, 0.45f) + pos;
+
+                ///this essentially controls the dial between liquid and gas
+                ///below check is good for liquids
+                //next_pos = (next_pos - pos).norm() * mix((next_pos - pos).length(), their_approx, 0.1f * tdist / relax_count) + pos;
+
+                ///this check seems to be more successful than the above
+                next_pos = mix((next_pos - pos), (real->pos - real->last_pos), 0.01f * tdist / relax_count) + pos;
+
+                //next_pos = mix(next_pos - pos, (real->try_next - real->pos), 0.45f) + pos;
+           }
 
             #if 0
 
