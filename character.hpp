@@ -498,13 +498,15 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
             //bool ignore = false;
 
+            float derived_knock_distance = real->params.hard_knock_distance; //* real->params.particle_size;
+
             vec2f saved_next = next_pos;
 
             ///maybe allow solids to trap a layer of liquids for fun?
             ///is solid will later be a derived property
             ///need rotation next, ie bond stiffness
             ///also want to rotate uninterfacing molecules so that they try and bond perhaps?
-            if(is_solid && real->is_solid && tlen > params.hard_knock_distance)
+            if(is_solid && real->is_solid && tlen > derived_knock_distance)
             {
                 for(int my_bond_c = 0; my_bond_c < num_bonds; my_bond_c++)
                 {
@@ -577,9 +579,10 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
                 next_pos = mix((next_pos - pos), (real->try_next - real->pos), params.fluid_thickness * tdist / relax_count) + pos;
             }
 
-            if(tlen < params.hard_knock_distance)
+            ///if tlen < length, we are knocked by another particle
+            if(tlen < derived_knock_distance)
             {
-                float extra = params.hard_knock_distance - tlen;
+                float extra = derived_knock_distance - tlen;
 
                 next_pos = next_pos - to_them.norm() * extra * 2.f / relax_count;
             }
@@ -587,10 +590,12 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             if(to_them.length() < 0.1)
                 continue;
 
-            float force_mult = params.general_repulsion_mult;
+            float force_mult = real->params.general_repulsion_mult;
 
             if(is_solid)
-                force_mult = params.general_repulsion_mult * 2;
+                force_mult *= 2;
+
+            force_mult *= real->params.particle_size;
 
             float force = (1.f/(tlen * tlen)) * force_mult;
 
@@ -613,6 +618,8 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
         }*/
 
         try_next = next_pos;
+
+        //accum = accum / params.particle_mass;
 
         acceleration += accum * 1000.f * 1000.f;
 
