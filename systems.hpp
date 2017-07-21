@@ -63,14 +63,16 @@ struct renderable
 
     }
 
-    bool out_of_bounds(sf::RenderWindow& win, vec2f pos)
+    bool out_of_bounds(sf::RenderWindow& win, vec2f pos, float rad)
     {
-        auto spos = win.mapCoordsToPixel({pos.x(), pos.y()});
+        auto sf_spos = win.mapCoordsToPixel({pos.x(), pos.y()});
 
-        int hx = tex.getSize().x/2;
-        int hy = tex.getSize().y/2;
+        vec2f spos = {sf_spos.x, sf_spos.y};
 
-        if(spos.x + hx < 0 || spos.y + hy < 0 || spos.x - hx > win.getSize().x || spos.y - hy > win.getSize().y)
+        float hx = rad*2;
+        float hy = rad*2;
+
+        if(spos.x() + hx < 0 || spos.y() + hy < 0 || spos.x() - hx > win.getSize().x || spos.y() - hy > win.getSize().y)
             return true;
 
         return false;

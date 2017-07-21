@@ -34,12 +34,12 @@ struct physics_object_base : virtual moveable, virtual renderable, virtual colli
         team = id;
     }
 
-    virtual void render(sf::RenderWindow& win, vec2f pos)
+    /*virtual void render(sf::RenderWindow& win, vec2f pos)
     {
         if(!should_render)
             return;
 
-        if(out_of_bounds(win, pos))
+        if(out_of_bounds(win, pos, 10.f))
             return;
 
         sf::Sprite spr(tex);
@@ -48,7 +48,7 @@ struct physics_object_base : virtual moveable, virtual renderable, virtual colli
         spr.setColor(sf::Color(255 * col.x(), 255 * col.y(),255 * col.z()));
 
         win.draw(spr);
-    }
+    }*/
 };
 
 ///slave network character
@@ -193,6 +193,9 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
     void render(sf::RenderWindow& win) override
     {
         //renderable::render(win, pos, rotation);
+
+        if(out_of_bounds(win, pos, 10.f * params.particle_size))
+            return;
 
         vec3f fcol = get_colour() * 255.f;
 

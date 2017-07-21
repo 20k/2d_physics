@@ -640,6 +640,10 @@ struct debug_controls
     {
         ImGui::Begin("Parameter Editor");
 
+        ImGui::SetWindowPos(ImVec2(1000, 100), ImGuiSetCond_Once);
+
+        ImGui::PushItemWidth(200);
+
         ImGui::SliderFloat("Bonding keep distance", &params.bonding_keep_distance, 0.1f, 50.f);
         ImGui::SliderFloat("Hard knock distance", &params.hard_knock_distance, 1.f, 100.f);
         ImGui::SliderFloat("Bond strength", &params.bond_strength, 0.01f, 0.4999f);
@@ -648,6 +652,8 @@ struct debug_controls
 
         ImGui::SliderFloat("Particle size", &params.particle_size, 0.05, 10.f);
         ImGui::SliderFloat("Particle mass", &params.particle_mass, 0.05, 10.f);
+
+        ImGui::PopItemWidth();
 
         ImGui::End();
     }
