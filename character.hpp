@@ -162,9 +162,54 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
         rotation = randf_s(0.f, M_PI);
     }
 
+    vec3f get_colour()
+    {
+        vec3f colour = {1,1,1};
+
+        if(is_solid)
+        {
+            colour = {0.5, 1.f, 0.5};
+        }
+
+        else if(is_gas)
+        {
+            colour = {1.f, 0.5f, 0.5f};
+        }
+        else ///LIQUIIID
+        {
+            colour = {0.5f, 0.5f, 1.f};
+        }
+
+        if(fixed)
+        {
+            colour = {1,1,1};
+            //colour = mix({1,1,1}, colour, 0.5f);
+        }
+
+        return colour;
+    }
+
+    ///PROJECT ORGANISATION FUCKUP, SHOULD BE UNDER BASE
     void render(sf::RenderWindow& win) override
     {
-        renderable::render(win, pos, rotation);
+        //renderable::render(win, pos, rotation);
+
+        vec3f fcol = get_colour() * 255.f;
+
+        sf::CircleShape circle;
+        circle.setRadius(10.f * params.particle_size);
+        circle.setOrigin(10 * params.particle_size, 10 * params.particle_size);
+
+        //if(!fixed)
+        circle.setFillColor(sf::Color(fcol.x(), fcol.y(), fcol.z()));
+        //else
+        //    circle.setFillColor(sf::Color(255, 255, 255));
+
+        circle.setOutlineThickness(2);
+        circle.setOutlineColor(sf::Color(fcol.x()/2.f, fcol.y()/2.f, fcol.z()/2.f));
+        circle.setPosition(pos.x(), pos.y());
+
+        win.draw(circle);
 
         for(int i = 0; i < num_bonds; i++)
         {
@@ -491,6 +536,7 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             if(tlen > 200)
                 continue;
 
+            ///PROJECT ORGANISATION FUCKUP, ALL RELEVANT DATA SHOULD BE AVAILALBE UNDER PHYSICS_OBJECT_BASE
             physics_object_host* real = dynamic_cast<physics_object_host*>(obj);
 
             if(!real)
