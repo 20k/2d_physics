@@ -100,6 +100,7 @@ struct particle_parameters
 
     float particle_size = 1.f;
     float particle_mass = 1.f;
+    int num_bonds = 3;
 };
 
 ///solids next
@@ -128,7 +129,6 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
     int num_interacting = 0;
     float interaction_distance = 0.f;
 
-    int num_bonds = 3;
     float bond_length = 40.f;
 
     bool is_solid = true;
@@ -140,13 +140,13 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
     {
         vec2f dir;
 
-        if(num >= num_bonds)
+        if(num >= params.num_bonds)
         {
             printf("wtf are you doing, invalid bond num %i\n", num);
             return dir;
         }
 
-        float bond_frac = (float)num / num_bonds;
+        float bond_frac = (float)num / params.num_bonds;
         float bond_angle = bond_frac * 2 * M_PI;
 
         vec2f bond_dir = {cos(bond_angle), sin(bond_angle)};
@@ -214,7 +214,7 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
         win.draw(circle);
 
-        for(int i = 0; i < num_bonds; i++)
+        for(int i = 0; i < params.num_bonds; i++)
         {
             vec2f abs_dir = get_bond_dir_absolute(i);
 
@@ -508,6 +508,12 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
 
     particle_parameters params;
 
+    ///particle size not working correctly
+    ///small slips through small, big stuck on small, big/small stuck on big
+    ///I think essentially we just want gmm1/r2, although maybe add for simplicity
+
+    ///Ok. Above works fine. Solids are ok, gas is great, liquids need to diffuse which means probably adding random jitter depending
+    ///on their energy
     virtual void interact(float dt_s, chemical_interaction_base<physics_object_base>& items, state& st) override
     {
         if(fixed)
@@ -557,13 +563,13 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             ///also want to rotate uninterfacing molecules so that they try and bond perhaps?
             if(is_solid && real->is_solid && tlen > derived_knock_distance)
             {
-                for(int my_bond_c = 0; my_bond_c < num_bonds; my_bond_c++)
+                for(int my_bond_c = 0; my_bond_c < params.num_bonds; my_bond_c++)
                 {
                     vec2f my_bond_dir = get_bond_dir_absolute(my_bond_c);
 
                     vec2f my_bond_pos = my_bond_dir * bond_length + pos;
 
-                    for(int their_bond_c = 0; their_bond_c < real->num_bonds; their_bond_c++)
+                    for(int their_bond_c = 0; their_bond_c < real->params.num_bonds; their_bond_c++)
                     {
                         vec2f their_bond_dir = real->get_bond_dir_absolute(their_bond_c);
 
@@ -639,12 +645,10 @@ struct physics_object_host : virtual physics_object_base, virtual networkable_ho
             if(to_them.length() < 0.1)
                 continue;
 
-            float force_mult = real->params.general_repulsion_mult;
+            float force_mult = real->params.general_repulsion_mult * real->params.particle_size + params.general_repulsion_mult * params.particle_size;
 
             if(is_solid)
                 force_mult *= 2;
-
-            force_mult *= real->params.particle_size;
 
             float force = (1.f/(tlen * tlen)) * force_mult;
 
